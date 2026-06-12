@@ -155,18 +155,23 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// triggers a transient error that can persist for a few ticks.
 		if err := m.player.StreamErr(); err != nil && !m.seek.active && m.seek.grace == 0 {
 			track, idx := m.playlist.Current()
-			isStream := idx >= 0 && (track.Stream || playlist.IsYouTubeURL(track.Path) || playlist.IsYTDL(track.Path))
-			if isStream && m.reconnect.attempts < 5 {
-				// Schedule reconnect with exponential backoff: 1s, 2s, 4s, 8s, 16s
-				if m.reconnect.at.IsZero() {
-					delay := time.Second << m.reconnect.attempts
-					m.reconnect.at = now.Add(delay)
-					m.reconnect.attempts++
-					m.err = fmt.Errorf("reconnecting in %s", delay)
-				}
-			} else {
-				m.err = err
+			if m.finishedYTDLTrack(track, idx) {
+				m.err = nil
 				m.reconnect.at = time.Time{}
+			} else {
+				isStream := idx >= 0 && (track.Stream || playlist.IsYouTubeURL(track.Path) || playlist.IsYTDL(track.Path))
+				if isStream && m.reconnect.attempts < 5 {
+					// Schedule reconnect with exponential backoff: 1s, 2s, 4s, 8s, 16s
+					if m.reconnect.at.IsZero() {
+						delay := time.Second << m.reconnect.attempts
+						m.reconnect.at = now.Add(delay)
+						m.reconnect.attempts++
+						m.err = fmt.Errorf("reconnecting in %s", delay)
+					}
+				} else {
+					m.err = err
+					m.reconnect.at = time.Time{}
+				}
 			}
 		}
 		var lyricCmd tea.Cmd
@@ -280,7 +285,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// This clears the gapless streamer so the finished track cannot
 			// replay while waiting for a yt-dlp pipe chain to spin up.
 			m.player.Stop()
-			cmds = append(cmds, m.nextTrack())
+			if cmd := m.relatedAutoplayCmd(finishedTrack); cmd != nil {
+				cmds = append(cmds, cmd)
+			} else {
+				cmds = append(cmds, m.nextTrack())
+			}
 			m.notifyAll()
 		}
 		if m.player.IsPlaying() && !m.player.IsPaused() {
@@ -315,6 +324,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tracksLoadedMsg:
+		m.relatedLoading = false
 		if !m.player.IsPlaying() {
 			m.player.Stop()
 			m.player.ClearPreload()
@@ -475,6 +485,29 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 		return m, nil
+
+	case relatedTracksLoadedMsg:
+		m.relatedLoading = false
+		if msg.err != nil {
+			m.status.Showf(statusTTLDefault, "SoundCloud autoplay failed: %v", msg.err)
+			m.notifyAll()
+			return m, nil
+		}
+		if len(msg.tracks) == 0 {
+			m.status.Show("No SoundCloud autoplay tracks found", statusTTLDefault)
+			m.notifyAll()
+			return m, nil
+		}
+		startIdx := m.playlist.Len()
+		m.playlist.Add(msg.tracks...)
+		m.addToHeaderState(msg.tracks)
+		m.status.Showf(statusTTLDefault, "SoundCloud autoplay added %d track(s)", len(msg.tracks))
+		m.playlist.SetIndex(startIdx)
+		m.plCursor = startIdx
+		m.adjustScroll()
+		cmd := m.playCurrentTrack()
+		m.notifyAll()
+		return m, cmd
 
 	case netSearchResultsMsg:
 		m.netSearch.loading = false

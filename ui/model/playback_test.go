@@ -1,6 +1,7 @@
 package model
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -11,6 +12,10 @@ import (
 
 type playbackFakeEngine struct {
 	playing   bool
+	drained   bool
+	streamErr error
+	pos       time.Duration
+	dur       time.Duration
 	playCalls []string
 }
 
@@ -31,16 +36,16 @@ func (f *playbackFakeEngine) SeekYTDL(time.Duration) error            { return n
 func (f *playbackFakeEngine) CancelSeekYTDL()                         {}
 func (f *playbackFakeEngine) IsPlaying() bool                         { return f.playing }
 func (f *playbackFakeEngine) IsPaused() bool                          { return false }
-func (f *playbackFakeEngine) Drained() bool                           { return false }
+func (f *playbackFakeEngine) Drained() bool                           { return f.drained }
 func (f *playbackFakeEngine) HasPreload() bool                        { return false }
 func (f *playbackFakeEngine) Seekable() bool                          { return false }
 func (f *playbackFakeEngine) IsStreamSeek() bool                      { return false }
 func (f *playbackFakeEngine) IsYTDLSeek() bool                        { return false }
 func (f *playbackFakeEngine) GaplessAdvanced() bool                   { return false }
-func (f *playbackFakeEngine) Position() time.Duration                 { return 0 }
-func (f *playbackFakeEngine) Duration() time.Duration                 { return 0 }
+func (f *playbackFakeEngine) Position() time.Duration                 { return f.pos }
+func (f *playbackFakeEngine) Duration() time.Duration                 { return f.dur }
 func (f *playbackFakeEngine) PositionAndDuration() (time.Duration, time.Duration) {
-	return 0, 0
+	return f.pos, f.dur
 }
 func (f *playbackFakeEngine) SetVolumeMin(float64)                   {}
 func (f *playbackFakeEngine) VolumeMin() float64                     { return -50 }
@@ -52,7 +57,7 @@ func (f *playbackFakeEngine) ToggleMono()                            {}
 func (f *playbackFakeEngine) Mono() bool                             { return false }
 func (f *playbackFakeEngine) SetEQBand(int, float64)                 {}
 func (f *playbackFakeEngine) EQBands() [10]float64                   { return [10]float64{} }
-func (f *playbackFakeEngine) StreamErr() error                       { return nil }
+func (f *playbackFakeEngine) StreamErr() error                       { return f.streamErr }
 func (f *playbackFakeEngine) StreamTitle() string                    { return "" }
 func (f *playbackFakeEngine) StreamBytes() (downloaded, total int64) { return 0, 0 }
 func (f *playbackFakeEngine) SamplesInto([]float64) int              { return 0 }
@@ -124,6 +129,74 @@ func TestTogglePlayPauseRestartsQueuedCurrentTrack(t *testing.T) {
 	}
 	if current, idx := m.playlist.Current(); current.Title != "Queued" || idx != 1 {
 		t.Fatalf("current = (%q,%d), want (\"Queued\",1)", current.Title, idx)
+	}
+}
+
+func TestRelatedTracksLoadedStartsFirstRelatedWithRepeatOne(t *testing.T) {
+	player := &playbackFakeEngine{}
+	p := playlist.New()
+	p.Replace([]playlist.Track{
+		{Title: "Source", Path: "https://api-v2.soundcloud.com/tracks/293", Stream: true},
+	})
+	p.SetIndex(0)
+	p.SetRepeat(playlist.RepeatOne)
+
+	m := Model{
+		player:   player,
+		playlist: p,
+		vis:      ui.NewVisualizer(float64(player.SampleRate())),
+	}
+
+	updated, cmd := m.Update(relatedTracksLoadedMsg{
+		tracks: []playlist.Track{
+			{Title: "Related", Path: "https://api-v2.soundcloud.com/tracks/693204457", Stream: true},
+		},
+	})
+	got := updated.(Model)
+	current, idx := got.playlist.Current()
+	if current.Title != "Related" || idx != 1 {
+		t.Fatalf("current = (%q,%d), want (\"Related\",1)", current.Title, idx)
+	}
+	if got.plCursor != 1 {
+		t.Fatalf("plCursor = %d, want 1", got.plCursor)
+	}
+	if cmd == nil {
+		t.Fatal("Update(relatedTracksLoadedMsg) returned nil command")
+	}
+}
+
+func TestFinishedYTDLStreamErrorDoesNotScheduleReconnect(t *testing.T) {
+	player := &playbackFakeEngine{
+		playing:   true,
+		drained:   true,
+		streamErr: errors.New("EOF"),
+		pos:       180 * time.Second,
+		dur:       180 * time.Second,
+	}
+	p := playlist.New()
+	p.Replace([]playlist.Track{
+		{
+			Title:        "Source",
+			Path:         "https://api-v2.soundcloud.com/tracks/293",
+			Stream:       true,
+			DurationSecs: 180,
+		},
+	})
+	p.SetIndex(0)
+
+	m := Model{
+		player:   player,
+		playlist: p,
+		vis:      ui.NewVisualizer(float64(player.SampleRate())),
+	}
+
+	updated, _ := m.Update(tickMsg(time.Now()))
+	got := updated.(Model)
+	if !got.reconnect.at.IsZero() {
+		t.Fatalf("reconnect scheduled at %v, want zero", got.reconnect.at)
+	}
+	if got.err != nil {
+		t.Fatalf("err = %v, want nil", got.err)
 	}
 }
 

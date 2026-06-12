@@ -240,6 +240,8 @@ type Model struct {
 	// preloading is true while a preloadStreamCmd goroutine is in-flight.
 	preloading bool
 
+	relatedLoading bool
+
 	// Live stream title from ICY metadata (e.g., "Artist - Song")
 	streamTitle string
 

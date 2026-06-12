@@ -2,12 +2,17 @@ package model
 
 import (
 	"errors"
+	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
 
 	"cliamp/playlist"
+	"cliamp/provider"
 )
+
+const relatedAutoplayLimit = 20
+const ytdlFinishedGrace = 3 * time.Second
 
 // nextTrack advances to the next playlist track and starts playing it.
 // Unplayable tracks are skipped automatically.
@@ -20,6 +25,56 @@ func (m *Model) nextTrack() tea.Cmd {
 	m.plCursor = m.playlist.Index()
 	m.adjustScroll()
 	return m.playTrack(track)
+}
+
+func (m *Model) relatedAutoplayCmd(track playlist.Track) tea.Cmd {
+	if m.relatedLoading {
+		return nil
+	}
+	if m.playlist.QueueLen() > 0 || m.playlist.Index() < m.playlist.Len()-1 {
+		return nil
+	}
+	loader := m.relatedTrackLoader(track)
+	if loader == nil {
+		return nil
+	}
+	m.relatedLoading = true
+	m.status.Show("Loading SoundCloud autoplay...", statusTTLMedium)
+	return fetchRelatedTracksCmd(loader, track, relatedAutoplayLimit)
+}
+
+func (m *Model) relatedTrackLoader(track playlist.Track) provider.RelatedTrackLoader {
+	if track.Meta(provider.MetaSoundCloudID) == "" && !isSoundCloudAPITrack(track.Path) {
+		return nil
+	}
+	if loader, ok := m.provider.(provider.RelatedTrackLoader); ok {
+		return loader
+	}
+	for _, entry := range m.providers {
+		if loader, ok := entry.Provider.(provider.RelatedTrackLoader); ok {
+			return loader
+		}
+	}
+	return nil
+}
+
+func isSoundCloudAPITrack(path string) bool {
+	return strings.HasPrefix(path, "https://api-v2.soundcloud.com/tracks/") ||
+		strings.HasPrefix(path, "http://api-v2.soundcloud.com/tracks/")
+}
+
+func (m *Model) finishedYTDLTrack(track playlist.Track, idx int) bool {
+	if idx < 0 || !playlist.IsYTDL(track.Path) || track.IsLive() {
+		return false
+	}
+	if m.player.Drained() {
+		return true
+	}
+	dur := m.cachedDur
+	if dur <= 0 && track.DurationSecs > 0 {
+		dur = time.Duration(track.DurationSecs) * time.Second
+	}
+	return dur > 0 && m.cachedPos >= dur-ytdlFinishedGrace
 }
 
 // prevTrack goes to the previous track, or restarts if >3s into the current one.

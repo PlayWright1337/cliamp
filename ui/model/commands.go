@@ -44,6 +44,12 @@ type ShowStatusMsg struct {
 
 type tracksLoadedMsg []playlist.Track
 
+type relatedTracksLoadedMsg struct {
+	source playlist.Track
+	tracks []playlist.Track
+	err    error
+}
+
 // feedsLoadedMsg carries tracks resolved from remote feed/M3U URLs,
 // along with the original source URLs so downstream handlers can identify
 // the source (e.g. YouTube Radio) without re-scanning external state.
@@ -252,6 +258,17 @@ func fetchTracksCmd(prov playlist.Provider, playlistID string) tea.Cmd {
 		// player receives a direct audio stream instead of a playlist file.
 		tracks = resolveWrapperURLs(tracks)
 		return tracksLoadedMsg(tracks)
+	}
+}
+
+func fetchRelatedTracksCmd(loader provider.RelatedTrackLoader, track playlist.Track, limit int) tea.Cmd {
+	return func() tea.Msg {
+		tracks, err := loader.RelatedTracks(context.Background(), track, limit)
+		if err != nil {
+			return relatedTracksLoadedMsg{source: track, err: err}
+		}
+		tracks = resolveWrapperURLs(tracks)
+		return relatedTracksLoadedMsg{source: track, tracks: tracks}
 	}
 }
 
