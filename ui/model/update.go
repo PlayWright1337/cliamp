@@ -41,6 +41,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 
 	case tea.KeyPressMsg:
+		if !m.keyTextInputActive() {
+			msg = normalizeHotkeyMsg(msg)
+		}
 		cmd := m.handleKey(msg)
 		if m.quitting {
 			return m, tea.Quit
