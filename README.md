@@ -8,6 +8,32 @@ Built with [Bubbletea](https://github.com/charmbracelet/bubbletea), [Lip Gloss](
 https://github.com/user-attachments/assets/fbc33d20-e3ac-4a62-a991-8a2f0243c8ea
 
 
+## Update
+
+This fork adds a more complete SoundCloud flow:
+
+- SoundCloud can be opened as a first-class provider tab with `--provider soundcloud`.
+- SoundCloud autoplay now continues with track-station recommendations when the current SoundCloud queue reaches the end.
+- Recommended SoundCloud tracks are resolved with full metadata when possible, so the playlist shows real artist/title names instead of raw SoundCloud ids.
+- Finished yt-dlp/SoundCloud tracks no longer trigger a false reconnect loop before autoplay can load the next recommendations.
+- Hotkeys are normalized across keyboard layouts when the terminal exposes physical key codes, with a Russian ЙЦУКЕН fallback for terminals that only send text input. Text fields still keep the typed language unchanged.
+
+Example config:
+
+```toml
+provider = "soundcloud"
+
+[soundcloud]
+enabled = true
+cookies_from = "chromium"
+```
+
+Run from source:
+
+```sh
+MISE_TRUSTED_CONFIG_PATHS=/home/playwright/Projects/cliamp-main go run . --provider soundcloud
+```
+
 ## Install
 
 ```sh
