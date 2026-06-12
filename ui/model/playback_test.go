@@ -17,6 +17,7 @@ type playbackFakeEngine struct {
 	pos       time.Duration
 	dur       time.Duration
 	playCalls []string
+	stopCalls int
 }
 
 func (f *playbackFakeEngine) Play(path string, _ time.Duration) error {
@@ -24,26 +25,33 @@ func (f *playbackFakeEngine) Play(path string, _ time.Duration) error {
 	f.playCalls = append(f.playCalls, path)
 	return nil
 }
-func (f *playbackFakeEngine) PlayYTDL(string, time.Duration) error    { return nil }
+func (f *playbackFakeEngine) PlayYTDL(path string, _ time.Duration) error {
+	f.playing = true
+	f.playCalls = append(f.playCalls, path)
+	return nil
+}
 func (f *playbackFakeEngine) Preload(string, time.Duration) error     { return nil }
 func (f *playbackFakeEngine) PreloadYTDL(string, time.Duration) error { return nil }
 func (f *playbackFakeEngine) ClearPreload()                           {}
-func (f *playbackFakeEngine) Stop()                                   { f.playing = false }
-func (f *playbackFakeEngine) Close()                                  {}
-func (f *playbackFakeEngine) TogglePause()                            {}
-func (f *playbackFakeEngine) Seek(time.Duration) error                { return nil }
-func (f *playbackFakeEngine) SeekYTDL(time.Duration) error            { return nil }
-func (f *playbackFakeEngine) CancelSeekYTDL()                         {}
-func (f *playbackFakeEngine) IsPlaying() bool                         { return f.playing }
-func (f *playbackFakeEngine) IsPaused() bool                          { return false }
-func (f *playbackFakeEngine) Drained() bool                           { return f.drained }
-func (f *playbackFakeEngine) HasPreload() bool                        { return false }
-func (f *playbackFakeEngine) Seekable() bool                          { return false }
-func (f *playbackFakeEngine) IsStreamSeek() bool                      { return false }
-func (f *playbackFakeEngine) IsYTDLSeek() bool                        { return false }
-func (f *playbackFakeEngine) GaplessAdvanced() bool                   { return false }
-func (f *playbackFakeEngine) Position() time.Duration                 { return f.pos }
-func (f *playbackFakeEngine) Duration() time.Duration                 { return f.dur }
+func (f *playbackFakeEngine) Stop() {
+	f.playing = false
+	f.stopCalls++
+}
+func (f *playbackFakeEngine) Close()                       {}
+func (f *playbackFakeEngine) TogglePause()                 {}
+func (f *playbackFakeEngine) Seek(time.Duration) error     { return nil }
+func (f *playbackFakeEngine) SeekYTDL(time.Duration) error { return nil }
+func (f *playbackFakeEngine) CancelSeekYTDL()              {}
+func (f *playbackFakeEngine) IsPlaying() bool              { return f.playing }
+func (f *playbackFakeEngine) IsPaused() bool               { return false }
+func (f *playbackFakeEngine) Drained() bool                { return f.drained }
+func (f *playbackFakeEngine) HasPreload() bool             { return false }
+func (f *playbackFakeEngine) Seekable() bool               { return false }
+func (f *playbackFakeEngine) IsStreamSeek() bool           { return false }
+func (f *playbackFakeEngine) IsYTDLSeek() bool             { return false }
+func (f *playbackFakeEngine) GaplessAdvanced() bool        { return false }
+func (f *playbackFakeEngine) Position() time.Duration      { return f.pos }
+func (f *playbackFakeEngine) Duration() time.Duration      { return f.dur }
 func (f *playbackFakeEngine) PositionAndDuration() (time.Duration, time.Duration) {
 	return f.pos, f.dur
 }
@@ -162,6 +170,46 @@ func TestRelatedTracksLoadedStartsFirstRelatedWithRepeatOne(t *testing.T) {
 	}
 	if cmd == nil {
 		t.Fatal("Update(relatedTracksLoadedMsg) returned nil command")
+	}
+}
+
+func TestTracksLoadedAutoPlaysFirstTrackAndStopsPreviousPlayback(t *testing.T) {
+	player := &playbackFakeEngine{playing: true}
+	p := playlist.New()
+	p.Replace([]playlist.Track{
+		{Title: "Old", Path: "old.mp3", DurationSecs: 120},
+	})
+	p.SetIndex(0)
+
+	m := Model{
+		player:   player,
+		playlist: p,
+		vis:      ui.NewVisualizer(float64(player.SampleRate())),
+	}
+
+	updated, cmd := m.Update(tracksLoadedMsg{
+		tracks: []playlist.Track{
+			{Title: "New", Path: "https://example.com/new.mp3", Stream: true, DurationSecs: 180},
+		},
+		autoPlay: true,
+	})
+	if cmd == nil {
+		t.Fatal("Update(tracksLoadedMsg) returned nil command")
+	}
+
+	got := updated.(Model)
+	current, idx := got.playlist.Current()
+	if current.Title != "New" || idx != 0 {
+		t.Fatalf("current = (%q,%d), want (\"New\",0)", current.Title, idx)
+	}
+	if player.stopCalls == 0 {
+		t.Fatal("Stop() was not called before replacing provider tracks")
+	}
+	if msg := cmd(); msg == nil {
+		t.Fatal("play command returned nil message")
+	}
+	if len(player.playCalls) != 1 || player.playCalls[0] != "https://example.com/new.mp3" {
+		t.Fatalf("playCalls = %v, want [https://example.com/new.mp3]", player.playCalls)
 	}
 }
 

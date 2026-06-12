@@ -1,6 +1,7 @@
 package model
 
 import (
+	"reflect"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -8,6 +9,8 @@ import (
 	"cliamp/playlist"
 	"cliamp/provider"
 )
+
+const providerNowPlayingID = "cliamp:now-playing"
 
 // resetProviderNav resets provider navigation and search state to the top.
 func (m *Model) resetProviderNav() {
@@ -19,6 +22,40 @@ func (m *Model) resetProviderNav() {
 	m.provSearch.results = nil
 	m.provSearch.cursor = 0
 	m.provSearch.scroll = 0
+}
+
+func (m *Model) decorateProviderLists(lists []playlist.PlaylistInfo) []playlist.PlaylistInfo {
+	if m.providerKey() != "soundcloud" || m.playlist == nil || m.playlist.Len() == 0 {
+		return lists
+	}
+	out := make([]playlist.PlaylistInfo, 0, len(lists)+1)
+	out = append(out, playlist.PlaylistInfo{ID: providerNowPlayingID, Name: "Now Playing", Section: "Cliamp"})
+	out = append(out, lists...)
+	return out
+}
+
+func (m *Model) providerKey() string {
+	if m.provPillIdx >= 0 && m.provPillIdx < len(m.providers) && sameProvider(m.providers[m.provPillIdx].Provider, m.provider) {
+		return m.providers[m.provPillIdx].Key
+	}
+	for _, entry := range m.providers {
+		if sameProvider(entry.Provider, m.provider) {
+			return entry.Key
+		}
+	}
+	return ""
+}
+
+func sameProvider(a, b playlist.Provider) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	av := reflect.ValueOf(a)
+	bv := reflect.ValueOf(b)
+	if av.Type() != bv.Type() || !av.Type().Comparable() {
+		return false
+	}
+	return av.Interface() == bv.Interface()
 }
 
 // StartInProvider configures the model to begin in the provider browse view.

@@ -317,7 +317,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(cmds...)
 
 	case []playlist.PlaylistInfo:
-		m.providerLists = msg
+		m.providerLists = m.decorateProviderLists(msg)
 		m.provLoading = false
 		// Start loading catalog when the provider supports lazy catalog loading.
 		if loader, ok := m.provider.(provider.CatalogLoader); ok && !m.catalogBatch.loading && !m.catalogBatch.done {
@@ -328,19 +328,23 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tracksLoadedMsg:
 		m.relatedLoading = false
-		if !m.player.IsPlaying() {
-			m.player.Stop()
-			m.player.ClearPreload()
-		}
+		m.player.Stop()
+		m.player.ClearPreload()
 		m.resetYTDLBatch()
-		m.playlist.Replace(msg)
-		m.setHeaderStateFromTracks(msg)
+		m.playlist.Replace(msg.tracks)
+		m.setHeaderStateFromTracks(msg.tracks)
 		m.plCursor = 0
 		m.plScroll = 0
 		m.focus = focusPlaylist
 		m.applyHeightMode()
 		m.adjustScroll()
 		m.provLoading = false
+		if msg.autoPlay && len(msg.tracks) > 0 {
+			m.playlist.SetIndex(0)
+			cmd := m.playCurrentTrack()
+			m.notifyAll()
+			return m, cmd
+		}
 		m.notifyAll()
 		return m, nil
 
@@ -394,7 +398,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		if lists, err := m.provider.Playlists(); err == nil {
-			m.providerLists = lists
+			m.providerLists = m.decorateProviderLists(lists)
 		}
 		m.catalogBatch.offset += msg.added
 		if msg.added < catalogBatchSize {
@@ -408,7 +412,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.status.Show("Search failed", statusTTLDefault)
 		} else {
 			if lists, err := m.provider.Playlists(); err == nil {
-				m.providerLists = lists
+				m.providerLists = m.decorateProviderLists(lists)
 			}
 			m.provCursor = 0
 			m.provScroll = 0

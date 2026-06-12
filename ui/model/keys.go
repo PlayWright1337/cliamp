@@ -305,6 +305,10 @@ func (m *Model) handleKey(msg tea.KeyPressMsg) tea.Cmd {
 				}
 			}
 			if len(m.providerLists) > 0 && !m.provLoading {
+				if m.providerLists[m.provCursor].ID == providerNowPlayingID {
+					m.focus = focusPlaylist
+					return nil
+				}
 				m.provLoading = true
 				m.activeProviderPlaylistID = m.providerLists[m.provCursor].ID
 				return fetchTracksCmd(m.provider, m.providerLists[m.provCursor].ID)
@@ -982,6 +986,11 @@ func (m *Model) handleProvSearchKey(msg tea.KeyPressMsg) tea.Cmd {
 			idx := m.provSearch.results[m.provSearch.cursor]
 			m.provCursor = idx
 			m.providerMaybeAdjustScroll()
+			if m.providerLists[idx].ID == providerNowPlayingID {
+				m.provSearch.active = false
+				m.focus = focusPlaylist
+				return nil
+			}
 			m.provLoading = true
 			m.provSearch.active = false
 			m.activeProviderPlaylistID = m.providerLists[idx].ID
@@ -1055,7 +1064,7 @@ func (m *Model) restoreCatalog(cs provider.CatalogSearcher) {
 	}
 	cs.ClearSearch()
 	if lists, err := m.provider.Playlists(); err == nil {
-		m.providerLists = lists
+		m.providerLists = m.decorateProviderLists(lists)
 	}
 	m.provCursor = 0
 	m.provScroll = 0

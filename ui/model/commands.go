@@ -42,7 +42,10 @@ type ShowStatusMsg struct {
 	Duration time.Duration
 }
 
-type tracksLoadedMsg []playlist.Track
+type tracksLoadedMsg struct {
+	tracks   []playlist.Track
+	autoPlay bool
+}
 
 type relatedTracksLoadedMsg struct {
 	source playlist.Track
@@ -257,7 +260,7 @@ func fetchTracksCmd(prov playlist.Provider, playlistID string) tea.Cmd {
 		// Resolve PLS/M3U wrapper URLs to actual stream URLs so the
 		// player receives a direct audio stream instead of a playlist file.
 		tracks = resolveWrapperURLs(tracks)
-		return tracksLoadedMsg(tracks)
+		return tracksLoadedMsg{tracks: tracks, autoPlay: true}
 	}
 }
 
