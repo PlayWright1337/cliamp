@@ -22,21 +22,30 @@ func (m *Model) keyTextInputActive() bool {
 
 func normalizeHotkeyMsg(msg tea.KeyPressMsg) tea.KeyPressMsg {
 	key := msg.Key()
-	if key.BaseCode != 0 && key.BaseCode < 128 && unicode.IsPrint(key.BaseCode) {
-		key = keyWithLatinCode(key, key.BaseCode)
+	if code, ok := physicalLatinCode(key); ok {
+		key = keyWithLatinCode(key, code)
 		return tea.KeyPressMsg(key)
 	}
 	if len(key.Text) == 1 {
-		if mapped, ok := qwertyRune([]rune(key.Text)[0]); ok {
+		if mapped, ok := cyrillicQwertyFallbackRune([]rune(key.Text)[0]); ok {
 			key = keyWithLatinCode(key, mapped)
 			return tea.KeyPressMsg(key)
 		}
 	}
-	if mapped, ok := qwertyRune(key.Code); ok {
+	if mapped, ok := cyrillicQwertyFallbackRune(key.Code); ok {
 		key = keyWithLatinCode(key, mapped)
 		return tea.KeyPressMsg(key)
 	}
 	return msg
+}
+
+func physicalLatinCode(key tea.Key) (rune, bool) {
+	for _, code := range []rune{key.BaseCode, key.ShiftedCode, key.Code} {
+		if code > 0 && code < 128 && unicode.IsPrint(code) {
+			return code, true
+		}
+	}
+	return 0, false
 }
 
 func keyWithLatinCode(key tea.Key, code rune) tea.Key {
@@ -57,10 +66,10 @@ func keyWithLatinCode(key tea.Key, code rune) tea.Key {
 	return key
 }
 
-func qwertyRune(r rune) (rune, bool) {
+func cyrillicQwertyFallbackRune(r rune) (rune, bool) {
 	upper := unicode.IsUpper(r)
 	r = unicode.ToLower(r)
-	mapped, ok := russianQwerty[r]
+	mapped, ok := cyrillicQwertyFallback[r]
 	if !ok {
 		return 0, false
 	}
@@ -70,7 +79,7 @@ func qwertyRune(r rune) (rune, bool) {
 	return mapped, true
 }
 
-var russianQwerty = map[rune]rune{
+var cyrillicQwertyFallback = map[rune]rune{
 	'й': 'q',
 	'ц': 'w',
 	'у': 'e',
@@ -104,4 +113,7 @@ var russianQwerty = map[rune]rune{
 	'б': ',',
 	'ю': '.',
 	'ё': '`',
+	'ї': ']',
+	'є': '\'',
+	'ґ': '`',
 }

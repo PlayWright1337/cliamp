@@ -16,7 +16,7 @@ This fork adds a more complete SoundCloud flow:
 - SoundCloud autoplay now continues with track-station recommendations when the current SoundCloud queue reaches the end.
 - Recommended SoundCloud tracks are resolved with full metadata when possible, so the playlist shows real artist/title names instead of raw SoundCloud ids.
 - Finished yt-dlp/SoundCloud tracks no longer trigger a false reconnect loop before autoplay can load the next recommendations.
-- Hotkeys are normalized across keyboard layouts when the terminal exposes physical key codes, with a Russian ЙЦУКЕН fallback for terminals that only send text input. Text fields still keep the typed language unchanged.
+- Hotkeys are normalized across keyboard layouts when the terminal exposes physical key codes, with a Cyrillic QWERTY fallback for terminals that only send text input. Text fields still keep the typed language unchanged.
 
 Example config:
 
