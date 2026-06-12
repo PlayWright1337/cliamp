@@ -548,7 +548,8 @@ func (m Model) renderProviderList() string {
 		}
 		return strings.Join(lines, "\n")
 	}
-	if len(m.providerLists) == 0 {
+	providerLists := m.decorateProviderLists(m.providerLists)
+	if len(providerLists) == 0 {
 		return m.renderProviderEmptyState(visibleBudget)
 	}
 
@@ -574,28 +575,31 @@ func (m Model) renderProviderList() string {
 				scroll := m.provSearch.scroll
 				for j := scroll; j < scroll+visible && j < len(m.provSearch.results); j++ {
 					idx := m.provSearch.results[j]
-					p := m.providerLists[idx]
+					if idx >= len(providerLists) {
+						continue
+					}
+					p := providerLists[idx]
 					prefix, style := m.providerRowStyle(p, j == m.provSearch.cursor)
 					lines = append(lines, style.Render(playlistLabel(prefix, p)))
 				}
-				lines = append(lines, dimStyle.Render(fmt.Sprintf("  %d/%d playlists", len(m.provSearch.results), len(m.providerLists))))
+				lines = append(lines, dimStyle.Render(fmt.Sprintf("  %d/%d playlists", len(m.provSearch.results), len(providerLists))))
 			}
 		}
 	} else {
 		scroll := max(0, m.provScroll)
-		if scroll >= len(m.providerLists) {
-			scroll = max(0, len(m.providerLists)-1)
+		if scroll >= len(providerLists) {
+			scroll = max(0, len(providerLists)-1)
 		}
 		if m.provCursor < scroll {
 			scroll = m.provCursor
 		}
 
-		hasSections := !isRadio && slices.ContainsFunc(m.providerLists, func(p playlist.PlaylistInfo) bool {
+		hasSections := !isRadio && slices.ContainsFunc(providerLists, func(p playlist.PlaylistInfo) bool {
 			return p.Section != ""
 		})
 
 		if isRadio {
-			for scroll < len(m.providerLists)-1 && m.providerRowsFromScroll(sl, scroll, m.provCursor) > visibleBudget {
+			for scroll < len(providerLists)-1 && m.providerRowsFromScroll(sl, scroll, m.provCursor) > visibleBudget {
 				scroll++
 			}
 		} else if m.provCursor >= scroll+visibleBudget {
@@ -604,15 +608,15 @@ func (m Model) renderProviderList() string {
 
 		prevPrefix := ""
 		if isRadio && scroll > 0 {
-			prevPrefix = sl.IDPrefix(m.providerLists[scroll-1].ID)
+			prevPrefix = sl.IDPrefix(providerLists[scroll-1].ID)
 		}
 		prevSection := ""
 		if hasSections && scroll > 0 {
-			prevSection = m.providerLists[scroll-1].Section
+			prevSection = providerLists[scroll-1].Section
 		}
 
-		for j := scroll; j < len(m.providerLists) && len(lines) < visibleBudget; j++ {
-			p := m.providerLists[j]
+		for j := scroll; j < len(providerLists) && len(lines) < visibleBudget; j++ {
+			p := providerLists[j]
 
 			if isRadio {
 				pfx := sl.IDPrefix(p.ID)

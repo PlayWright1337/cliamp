@@ -281,10 +281,12 @@ func (m *Model) handleKey(msg tea.KeyPressMsg) tea.Cmd {
 	}
 
 	if m.provSearch.active {
+		m.ensureProviderListsDecorated()
 		return m.handleProvSearchKey(msg)
 	}
 
 	if m.focus == focusProvider {
+		m.ensureProviderListsDecorated()
 		switch msg.String() {
 		case "q", "ctrl+c":
 			return m.quit()

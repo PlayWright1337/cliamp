@@ -54,6 +54,22 @@ func TestDecorateProviderListsAddsNowPlayingForSoundCloud(t *testing.T) {
 	}
 }
 
+func TestDecorateProviderListsAddsNowPlayingForSoundCloudByName(t *testing.T) {
+	prov := providerNowPlayingFake{}
+	p := playlist.New()
+	p.Replace([]playlist.Track{{Title: "Current", Path: "current.mp3"}})
+
+	m := Model{
+		provider: prov,
+		playlist: p,
+	}
+
+	got := m.decorateProviderLists([]playlist.PlaylistInfo{{ID: "tracks", Name: "Tracks"}})
+	if len(got) != 2 || got[0].ID != providerNowPlayingID {
+		t.Fatalf("decorated = %+v, want Now Playing prepended", got)
+	}
+}
+
 func TestDecorateProviderListsSkipsNowPlayingWithoutSoundCloudPlaylist(t *testing.T) {
 	prov := providerNowPlayingFake{}
 

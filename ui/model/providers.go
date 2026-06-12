@@ -29,13 +29,23 @@ func (m *Model) decorateProviderLists(lists []playlist.PlaylistInfo) []playlist.
 	lists = slices.DeleteFunc(slices.Clone(lists), func(info playlist.PlaylistInfo) bool {
 		return info.ID == providerNowPlayingID
 	})
-	if m.providerKey() != "soundcloud" || m.playlist == nil || m.playlist.Len() == 0 {
+	if !m.isSoundCloudProvider() || m.playlist == nil || m.playlist.Len() == 0 {
 		return lists
 	}
 	out := make([]playlist.PlaylistInfo, 0, len(lists)+1)
 	out = append(out, playlist.PlaylistInfo{ID: providerNowPlayingID, Name: "Now Playing", Section: "Cliamp"})
 	out = append(out, lists...)
 	return out
+}
+
+func (m *Model) isSoundCloudProvider() bool {
+	if m.provider == nil {
+		return false
+	}
+	if m.providerKey() == "soundcloud" {
+		return true
+	}
+	return strings.EqualFold(m.provider.Name(), "SoundCloud")
 }
 
 func (m *Model) providerKey() string {
@@ -210,6 +220,22 @@ func (m *Model) refreshProviderNowPlaying() {
 		return
 	}
 	m.providerLists = m.decorateProviderLists(m.providerLists)
+}
+
+func (m *Model) ensureProviderListsDecorated() {
+	if m.providerLists == nil {
+		return
+	}
+	decorated := m.decorateProviderLists(m.providerLists)
+	if len(decorated) != len(m.providerLists) {
+		m.providerLists = decorated
+		if m.provCursor >= len(m.providerLists) {
+			m.provCursor = max(0, len(m.providerLists)-1)
+		}
+		if m.provSearch.active {
+			m.updateProvSearch()
+		}
+	}
 }
 
 // navUpdateSearch rebuilds navSearchIdx from the current navSearch query
