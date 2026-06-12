@@ -14,6 +14,10 @@ type Searcher interface {
 	SearchTracks(ctx context.Context, query string, limit int) ([]playlist.Track, error)
 }
 
+type RelatedTrackLoader interface {
+	RelatedTracks(ctx context.Context, track playlist.Track, limit int) ([]playlist.Track, error)
+}
+
 // ArtistBrowser is implemented by providers that support listing artists
 // and their albums.
 type ArtistBrowser interface {

@@ -26,6 +26,7 @@ import (
 
 	"cliamp/player"
 	"cliamp/playlist"
+	"cliamp/provider"
 
 	"github.com/kkdai/youtube/v2"
 )
@@ -394,12 +395,14 @@ func isHLSPlaylist(body []byte) bool {
 
 // ytdlFlatEntry holds JSON fields from yt-dlp --flat-playlist output.
 type ytdlFlatEntry struct {
+	ID                 string  `json:"id"`
 	URL                string  `json:"url"`
 	WebpageURL         string  `json:"webpage_url"`
 	Title              string  `json:"title"`
 	Uploader           string  `json:"uploader"`
 	PlaylistUploader   string  `json:"playlist_uploader"`
 	WebpageURLBasename string  `json:"webpage_url_basename"`
+	ExtractorKey       string  `json:"extractor_key"`
 	Duration           float64 `json:"duration"`
 }
 
@@ -487,6 +490,14 @@ func ResolveYTDLBatch(pageURL string, start, count int) ([]playlist.Track, error
 	return resolveYTDLRange(pageURL, start, end)
 }
 
+func ResolveYTDLMetadataBatch(pageURL string, start, count int) ([]playlist.Track, error) {
+	end := 0
+	if count > 0 {
+		end = start + count
+	}
+	return resolveYTDLRangeWithMode(pageURL, start, end, false)
+}
+
 // resolveYTDL uses yt-dlp --flat-playlist to quickly enumerate tracks.
 // Tracks are returned with their page URLs as Path (not direct audio URLs).
 // If maxItems > 0, only the first maxItems tracks are fetched.
@@ -499,14 +510,27 @@ func resolveYTDL(pageURL string, maxItems ...int) ([]playlist.Track, error) {
 }
 
 func resolveYTDLRange(pageURL string, start, end int) ([]playlist.Track, error) {
+	return resolveYTDLRangeWithMode(pageURL, start, end, true)
+}
+
+func resolveYTDLRangeWithMode(pageURL string, start, end int, flat bool) ([]playlist.Track, error) {
 	if _, err := exec.LookPath("yt-dlp"); err != nil {
 		return nil, fmt.Errorf("yt-dlp not found in PATH — see https://github.com/yt-dlp/yt-dlp#installation")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	timeout := 30 * time.Second
+	if !flat {
+		timeout = 75 * time.Second
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	args := []string{"--flat-playlist", "-j", "--socket-timeout", "15"}
+	args := []string{"-j", "--socket-timeout", "15"}
+	if flat {
+		args = append([]string{"--flat-playlist"}, args...)
+	} else {
+		args = append([]string{"--ignore-errors"}, args...)
+	}
 	if browser := ytdlCookiesFrom(); browser != "" {
 		args = append(args, "--cookies-from-browser", browser)
 	}
@@ -523,13 +547,15 @@ func resolveYTDLRange(pageURL string, start, end int) ([]playlist.Track, error) 
 	stdout, err := cmd.Output()
 	if err != nil {
 		if ctx.Err() == context.DeadlineExceeded {
-			return nil, fmt.Errorf("yt-dlp: timed out resolving %s (30s)", pageURL)
+			return nil, fmt.Errorf("yt-dlp: timed out resolving %s (%s)", pageURL, timeout)
 		}
 		msg := strings.TrimSpace(stderr.String())
-		if msg != "" {
+		if msg != "" && (flat || len(stdout) == 0) {
 			return nil, fmt.Errorf("yt-dlp: %s", msg)
 		}
-		return nil, fmt.Errorf("yt-dlp: %w", err)
+		if flat || len(stdout) == 0 {
+			return nil, fmt.Errorf("yt-dlp: %w", err)
+		}
 	}
 
 	var tracks []playlist.Track
@@ -564,15 +590,34 @@ func resolveYTDLRange(pageURL string, start, end int) ([]playlist.Track, error) 
 		if artist == "" {
 			artist = e.PlaylistUploader
 		}
+		meta := map[string]string(nil)
+		if isSoundCloudEntry(e, trackURL) && e.ID != "" {
+			meta = map[string]string{provider.MetaSoundCloudID: e.ID}
+		}
 		tracks = append(tracks, playlist.Track{
 			Path:         trackURL,
 			Title:        title,
 			Artist:       artist,
 			Stream:       true,
 			DurationSecs: int(e.Duration),
+			ProviderMeta: meta,
 		})
 	}
 	return tracks, scanner.Err()
+}
+
+func isSoundCloudEntry(e ytdlFlatEntry, trackURL string) bool {
+	if strings.EqualFold(e.ExtractorKey, "Soundcloud") {
+		return true
+	}
+	u, err := url.Parse(trackURL)
+	if err != nil {
+		return false
+	}
+	host := strings.ToLower(u.Hostname())
+	host = strings.TrimPrefix(host, "www.")
+	host = strings.TrimPrefix(host, "m.")
+	return host == "soundcloud.com" || host == "api-v2.soundcloud.com"
 }
 
 // DownloadYTDL downloads a single track via yt-dlp to the given directory

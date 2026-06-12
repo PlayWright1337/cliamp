@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"cliamp/playlist"
+	"cliamp/provider"
 	"cliamp/resolve"
 )
 
@@ -120,6 +122,67 @@ func TestTracksRejectsEmptyID(t *testing.T) {
 	_, err := p.Tracks("")
 	if err == nil {
 		t.Fatal("Tracks(\"\") expected error, got nil")
+	}
+}
+
+func TestSoundCloudTrackIDFromMeta(t *testing.T) {
+	track := playlist.Track{
+		ProviderMeta: map[string]string{provider.MetaSoundCloudID: "293"},
+	}
+	if got := soundCloudTrackID(track); got != "293" {
+		t.Fatalf("soundCloudTrackID() = %q, want 293", got)
+	}
+}
+
+func TestSoundCloudTrackIDFromAPIURL(t *testing.T) {
+	track := playlist.Track{Path: "https://api-v2.soundcloud.com/tracks/293"}
+	if got := soundCloudTrackID(track); got != "293" {
+		t.Fatalf("soundCloudTrackID() = %q, want 293", got)
+	}
+}
+
+func TestSoundCloudTrackIDRejectsCanonicalURLWithoutMeta(t *testing.T) {
+	track := playlist.Track{Path: "https://soundcloud.com/forss/flickermood"}
+	if got := soundCloudTrackID(track); got != "" {
+		t.Fatalf("soundCloudTrackID() = %q, want empty", got)
+	}
+}
+
+func TestSameSoundCloudTrackMatchesSourceID(t *testing.T) {
+	source := playlist.Track{
+		Path:         "https://soundcloud.com/forss/flickermood",
+		Title:        "Flickermood",
+		Artist:       "Forss",
+		DurationSecs: 213,
+		ProviderMeta: map[string]string{provider.MetaSoundCloudID: "293"},
+	}
+	candidate := playlist.Track{
+		Path:         "https://api-v2.soundcloud.com/tracks/293",
+		Title:        "Flickermood",
+		Artist:       "Forss",
+		DurationSecs: 213,
+	}
+	if !sameSoundCloudTrack("293", source, candidate) {
+		t.Fatal("sameSoundCloudTrack() = false, want true")
+	}
+}
+
+func TestSameSoundCloudTrackDoesNotMatchDifferentTrack(t *testing.T) {
+	source := playlist.Track{
+		Path:         "https://soundcloud.com/forss/flickermood",
+		Title:        "Flickermood",
+		Artist:       "Forss",
+		DurationSecs: 213,
+		ProviderMeta: map[string]string{provider.MetaSoundCloudID: "293"},
+	}
+	candidate := playlist.Track{
+		Path:         "https://api-v2.soundcloud.com/tracks/693204457",
+		Title:        "Other",
+		Artist:       "Other Artist",
+		DurationSecs: 180,
+	}
+	if sameSoundCloudTrack("293", source, candidate) {
+		t.Fatal("sameSoundCloudTrack() = true, want false")
 	}
 }
 

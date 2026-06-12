@@ -22,8 +22,9 @@ import (
 
 // Compile-time interface checks.
 var (
-	_ playlist.Provider = (*Provider)(nil)
-	_ provider.Searcher = (*Provider)(nil)
+	_ playlist.Provider           = (*Provider)(nil)
+	_ provider.Searcher           = (*Provider)(nil)
+	_ provider.RelatedTrackLoader = (*Provider)(nil)
 )
 
 // Config holds settings for the SoundCloud provider.
@@ -108,4 +109,84 @@ func (p *Provider) SearchTracks(_ context.Context, query string, limit int) ([]p
 		limit = 10
 	}
 	return resolve.ResolveYTDLBatch(fmt.Sprintf("scsearch%d:%s", limit, q), 0, 0)
+}
+
+func (p *Provider) RelatedTracks(_ context.Context, track playlist.Track, limit int) ([]playlist.Track, error) {
+	id := soundCloudTrackID(track)
+	if id == "" {
+		return nil, nil
+	}
+	if limit <= 0 {
+		limit = 20
+	}
+	tracks, err := resolve.ResolveYTDLMetadataBatch("https://soundcloud.com/discover/sets/track-stations:"+id, 1, limit+12)
+	if err != nil {
+		tracks, err = resolve.ResolveYTDLBatch("https://soundcloud.com/discover/sets/track-stations:"+id, 1, limit+12)
+		if err != nil {
+			return nil, err
+		}
+	}
+	out := make([]playlist.Track, 0, min(limit, len(tracks)))
+	for _, candidate := range tracks {
+		if sameSoundCloudTrack(id, track, candidate) {
+			continue
+		}
+		out = append(out, candidate)
+		if len(out) >= limit {
+			break
+		}
+	}
+	return out, nil
+}
+
+func sameSoundCloudTrack(sourceID string, source, candidate playlist.Track) bool {
+	candidateID := soundCloudTrackID(candidate)
+	if sourceID != "" && candidateID == sourceID {
+		return true
+	}
+	if source.Path != "" && candidate.Path == source.Path {
+		return true
+	}
+	if canonicalSoundCloudPath(source.Path) != "" && canonicalSoundCloudPath(source.Path) == canonicalSoundCloudPath(candidate.Path) {
+		return true
+	}
+	if source.Title != "" && source.Title == candidate.Title && source.Artist == candidate.Artist {
+		return source.DurationSecs == 0 || candidate.DurationSecs == 0 || source.DurationSecs == candidate.DurationSecs
+	}
+	return false
+}
+
+func canonicalSoundCloudPath(rawURL string) string {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return ""
+	}
+	host := strings.ToLower(u.Hostname())
+	host = strings.TrimPrefix(host, "www.")
+	host = strings.TrimPrefix(host, "m.")
+	if host != "soundcloud.com" {
+		return ""
+	}
+	return strings.Trim(strings.ToLower(u.EscapedPath()), "/")
+}
+
+func soundCloudTrackID(track playlist.Track) string {
+	if id := track.Meta(provider.MetaSoundCloudID); id != "" {
+		return id
+	}
+	u, err := url.Parse(track.Path)
+	if err != nil {
+		return ""
+	}
+	host := strings.ToLower(u.Hostname())
+	host = strings.TrimPrefix(host, "www.")
+	host = strings.TrimPrefix(host, "m.")
+	if host != "api-v2.soundcloud.com" {
+		return ""
+	}
+	parts := strings.Split(strings.Trim(u.Path, "/"), "/")
+	if len(parts) == 2 && parts[0] == "tracks" {
+		return parts[1]
+	}
+	return ""
 }
