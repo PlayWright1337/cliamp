@@ -330,6 +330,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.relatedLoading = false
 		m.provLoading = false
 		m.navBrowser.visible = true
+		m.navBrowser.providerTrack = true
 		m.navBrowser.mode = navBrowseModeByAlbum
 		m.navBrowser.screen = navBrowseScreenTracks
 		m.navBrowser.loading = false

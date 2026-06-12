@@ -16,6 +16,11 @@ func (m *Model) handleNavBrowserKey(msg tea.KeyPressMsg) tea.Cmd {
 
 	key := msg.String()
 
+	if isCtrlKey(msg, 'k') || key == "ctrl+k" || key == "?" {
+		m.openKeymap()
+		return nil
+	}
+
 	if !m.navBrowser.searching && key == "ctrl+f" {
 		m.openProviderSearchWith(m.navBrowser.prov)
 		return nil

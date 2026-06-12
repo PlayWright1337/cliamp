@@ -164,6 +164,75 @@ func TestProviderPlaylistSelectionOpensTrackBrowser(t *testing.T) {
 	}
 }
 
+func TestTracksLoadedKeepsProviderTrackBrowserBackTarget(t *testing.T) {
+	prov := providerNowPlayingFake{}
+	p := playlist.New()
+	p.Replace([]playlist.Track{{Title: "Current", Path: "current.mp3"}})
+
+	m := Model{
+		focus:    focusProvider,
+		provider: prov,
+		playlist: p,
+		providers: []ProviderEntry{
+			{Key: "soundcloud", Name: "SoundCloud", Provider: prov},
+		},
+		provPillIdx: 0,
+		providerLists: []playlist.PlaylistInfo{
+			{ID: "tracks", Name: "Tracks"},
+		},
+	}
+
+	updated, _ := m.Update(tracksLoadedMsg{
+		name:   "Tracks",
+		tracks: []playlist.Track{{Title: "Loaded", Path: "loaded.mp3"}},
+	})
+	got := updated.(Model)
+	if !got.navBrowser.providerTrack {
+		t.Fatal("providerTrack = false, want true")
+	}
+
+	cmd := got.handleNavTrackListKey(tea.KeyPressMsg{Code: tea.KeyEscape})
+	if cmd != nil {
+		t.Fatalf("cmd = %v, want nil", cmd)
+	}
+	if got.navBrowser.visible {
+		t.Fatal("navBrowser.visible = true, want false")
+	}
+	if got.focus != focusProvider {
+		t.Fatalf("focus = %v, want focusProvider", got.focus)
+	}
+	if len(got.providerLists) != 2 || got.providerLists[0].ID != providerNowPlayingID {
+		t.Fatalf("providerLists = %+v, want Now Playing prepended", got.providerLists)
+	}
+}
+
+func TestNavBrowserCtrlKOpensKeymap(t *testing.T) {
+	prov := providerNowPlayingFake{}
+	player := &playbackFakeEngine{}
+	m := Model{
+		player:   player,
+		playlist: playlist.New(),
+		vis:      ui.NewVisualizer(float64(player.SampleRate())),
+		navBrowser: navBrowserState{
+			prov:          prov,
+			visible:       true,
+			providerTrack: true,
+			mode:          navBrowseModeByAlbum,
+			screen:        navBrowseScreenTracks,
+			tracks:        []playlist.Track{{Title: "Loaded", Path: "loaded.mp3"}},
+		},
+	}
+
+	updated, cmd := m.Update(tea.KeyPressMsg{Code: 'k', Mod: tea.ModCtrl})
+	if cmd != nil {
+		t.Fatalf("cmd = %v, want nil", cmd)
+	}
+	got := updated.(Model)
+	if !got.keymap.visible {
+		t.Fatal("keymap.visible = false, want true")
+	}
+}
+
 func TestProviderTrackPlayAddsNowPlayingToSoundCloudMenu(t *testing.T) {
 	prov := providerNowPlayingFake{}
 	player := &playbackFakeEngine{}

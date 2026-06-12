@@ -66,6 +66,20 @@ func keyWithLatinCode(key tea.Key, code rune) tea.Key {
 	return key
 }
 
+func isCtrlKey(msg tea.KeyPressMsg, code rune) bool {
+	key := msg.Key()
+	if !key.Mod.Contains(tea.ModCtrl) {
+		return false
+	}
+	code = unicode.ToLower(code)
+	for _, candidate := range []rune{key.Code, key.BaseCode, key.ShiftedCode} {
+		if unicode.ToLower(candidate) == code {
+			return true
+		}
+	}
+	return false
+}
+
 func cyrillicQwertyFallbackRune(r rune) (rune, bool) {
 	upper := unicode.IsUpper(r)
 	r = unicode.ToLower(r)
