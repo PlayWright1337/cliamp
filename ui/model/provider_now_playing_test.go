@@ -124,3 +124,41 @@ func TestProviderNowPlayingSelectionReturnsToCurrentPlaylist(t *testing.T) {
 		t.Fatalf("activeProviderPlaylistID = %q, want empty", m.activeProviderPlaylistID)
 	}
 }
+
+func TestProviderPlaylistSelectionOpensTrackBrowser(t *testing.T) {
+	prov := providerNowPlayingFake{}
+	p := playlist.New()
+	p.Replace([]playlist.Track{{Title: "Current", Path: "current.mp3"}})
+
+	m := Model{
+		focus:    focusProvider,
+		provider: prov,
+		playlist: p,
+		providerLists: []playlist.PlaylistInfo{
+			{ID: "tracks", Name: "Tracks"},
+		},
+	}
+
+	cmd := m.handleKey(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if cmd == nil {
+		t.Fatal("cmd = nil, want fetch command")
+	}
+	if !m.navBrowser.visible || !m.navBrowser.loading || m.navBrowser.screen != navBrowseScreenTracks {
+		t.Fatalf("nav browser state = visible:%v loading:%v screen:%v, want loading track browser", m.navBrowser.visible, m.navBrowser.loading, m.navBrowser.screen)
+	}
+	if m.activeProviderPlaylistID != "" {
+		t.Fatalf("activeProviderPlaylistID = %q, want empty", m.activeProviderPlaylistID)
+	}
+	if current, idx := m.playlist.Current(); current.Title != "Current" || idx != 0 {
+		t.Fatalf("current = (%q,%d), want (\"Current\",0)", current.Title, idx)
+	}
+
+	msg := cmd()
+	loaded, ok := msg.(tracksLoadedMsg)
+	if !ok {
+		t.Fatalf("cmd() = %T, want tracksLoadedMsg", msg)
+	}
+	if loaded.name != "Tracks" || len(loaded.tracks) != 1 || loaded.tracks[0].Title != "Loaded" {
+		t.Fatalf("loaded = %+v, want Tracks with Loaded", loaded)
+	}
+}

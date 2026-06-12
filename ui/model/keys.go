@@ -305,13 +305,14 @@ func (m *Model) handleKey(msg tea.KeyPressMsg) tea.Cmd {
 				}
 			}
 			if len(m.providerLists) > 0 && !m.provLoading {
-				if m.providerLists[m.provCursor].ID == providerNowPlayingID {
+				info := m.providerLists[m.provCursor]
+				if info.ID == providerNowPlayingID {
 					m.focus = focusPlaylist
 					return nil
 				}
 				m.provLoading = true
-				m.activeProviderPlaylistID = m.providerLists[m.provCursor].ID
-				return fetchTracksCmd(m.provider, m.providerLists[m.provCursor].ID)
+				m.openProviderTrackBrowser(info)
+				return fetchTracksCmd(m.provider, info)
 			}
 		case "tab":
 			m.focus = focusEQ
@@ -986,15 +987,16 @@ func (m *Model) handleProvSearchKey(msg tea.KeyPressMsg) tea.Cmd {
 			idx := m.provSearch.results[m.provSearch.cursor]
 			m.provCursor = idx
 			m.providerMaybeAdjustScroll()
-			if m.providerLists[idx].ID == providerNowPlayingID {
+			info := m.providerLists[idx]
+			if info.ID == providerNowPlayingID {
 				m.provSearch.active = false
 				m.focus = focusPlaylist
 				return nil
 			}
 			m.provLoading = true
 			m.provSearch.active = false
-			m.activeProviderPlaylistID = m.providerLists[idx].ID
-			return fetchTracksCmd(m.provider, m.providerLists[idx].ID)
+			m.openProviderTrackBrowser(info)
+			return fetchTracksCmd(m.provider, info)
 		}
 	case tea.KeyUp:
 		if m.provSearch.cursor > 0 {

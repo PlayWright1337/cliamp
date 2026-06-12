@@ -179,6 +179,26 @@ func (m *Model) openNavBrowserWith(prov playlist.Provider) {
 	}
 }
 
+func (m *Model) openProviderTrackBrowser(info playlist.PlaylistInfo) {
+	m.navBrowser.prov = m.provider
+	m.navBrowser.visible = true
+	m.navBrowser.mode = navBrowseModeByAlbum
+	m.navBrowser.screen = navBrowseScreenTracks
+	m.navBrowser.cursor = 0
+	m.navBrowser.scroll = 0
+	m.navBrowser.artists = nil
+	m.navBrowser.albums = nil
+	m.navBrowser.tracks = nil
+	m.navBrowser.loading = true
+	m.navBrowser.albumLoading = false
+	m.navBrowser.albumDone = true
+	m.navBrowser.searching = false
+	m.navBrowser.search = ""
+	m.navBrowser.searchIdx = nil
+	m.navBrowser.selArtist = provider.ArtistInfo{}
+	m.navBrowser.selAlbum = provider.AlbumInfo{Name: info.Name}
+}
+
 // navUpdateSearch rebuilds navSearchIdx from the current navSearch query
 // against whichever list is active on the current nav screen.
 func (m *Model) navUpdateSearch() {

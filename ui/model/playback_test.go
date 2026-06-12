@@ -173,7 +173,7 @@ func TestRelatedTracksLoadedStartsFirstRelatedWithRepeatOne(t *testing.T) {
 	}
 }
 
-func TestTracksLoadedAutoPlaysFirstTrackAndStopsPreviousPlayback(t *testing.T) {
+func TestTracksLoadedOpensBrowserWithoutChangingPlayback(t *testing.T) {
 	player := &playbackFakeEngine{playing: true}
 	p := playlist.New()
 	p.Replace([]playlist.Track{
@@ -188,28 +188,34 @@ func TestTracksLoadedAutoPlaysFirstTrackAndStopsPreviousPlayback(t *testing.T) {
 	}
 
 	updated, cmd := m.Update(tracksLoadedMsg{
+		name: "Tracks",
 		tracks: []playlist.Track{
 			{Title: "New", Path: "https://example.com/new.mp3", Stream: true, DurationSecs: 180},
 		},
-		autoPlay: true,
 	})
-	if cmd == nil {
-		t.Fatal("Update(tracksLoadedMsg) returned nil command")
+	if cmd != nil {
+		t.Fatalf("Update(tracksLoadedMsg) returned %v, want nil", cmd)
 	}
 
 	got := updated.(Model)
 	current, idx := got.playlist.Current()
-	if current.Title != "New" || idx != 0 {
-		t.Fatalf("current = (%q,%d), want (\"New\",0)", current.Title, idx)
+	if current.Title != "Old" || idx != 0 {
+		t.Fatalf("current = (%q,%d), want (\"Old\",0)", current.Title, idx)
 	}
-	if player.stopCalls == 0 {
-		t.Fatal("Stop() was not called before replacing provider tracks")
+	if player.stopCalls != 0 {
+		t.Fatalf("Stop() calls = %d, want 0", player.stopCalls)
 	}
-	if msg := cmd(); msg == nil {
-		t.Fatal("play command returned nil message")
+	if len(player.playCalls) != 0 {
+		t.Fatalf("playCalls = %v, want none", player.playCalls)
 	}
-	if len(player.playCalls) != 1 || player.playCalls[0] != "https://example.com/new.mp3" {
-		t.Fatalf("playCalls = %v, want [https://example.com/new.mp3]", player.playCalls)
+	if !got.navBrowser.visible || got.navBrowser.screen != navBrowseScreenTracks {
+		t.Fatalf("nav browser state = visible:%v screen:%v, want track browser", got.navBrowser.visible, got.navBrowser.screen)
+	}
+	if len(got.navBrowser.tracks) != 1 || got.navBrowser.tracks[0].Title != "New" {
+		t.Fatalf("nav tracks = %+v, want New", got.navBrowser.tracks)
+	}
+	if got.navBrowser.selAlbum.Name != "Tracks" {
+		t.Fatalf("nav title = %q, want Tracks", got.navBrowser.selAlbum.Name)
 	}
 }
 

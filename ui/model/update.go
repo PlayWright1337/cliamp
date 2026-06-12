@@ -328,22 +328,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tracksLoadedMsg:
 		m.relatedLoading = false
-		m.player.Stop()
-		m.player.ClearPreload()
-		m.resetYTDLBatch()
-		m.playlist.Replace(msg.tracks)
-		m.setHeaderStateFromTracks(msg.tracks)
-		m.plCursor = 0
-		m.plScroll = 0
-		m.focus = focusPlaylist
-		m.applyHeightMode()
-		m.adjustScroll()
 		m.provLoading = false
-		if msg.autoPlay && len(msg.tracks) > 0 {
-			m.playlist.SetIndex(0)
-			cmd := m.playCurrentTrack()
-			m.notifyAll()
-			return m, cmd
+		m.navBrowser.visible = true
+		m.navBrowser.mode = navBrowseModeByAlbum
+		m.navBrowser.screen = navBrowseScreenTracks
+		m.navBrowser.loading = false
+		m.navBrowser.cursor = 0
+		m.navBrowser.scroll = 0
+		m.navBrowser.searching = false
+		m.navBrowser.search = ""
+		m.navBrowser.searchIdx = nil
+		m.navBrowser.tracks = msg.tracks
+		if msg.name != "" {
+			m.navBrowser.selAlbum = provider.AlbumInfo{Name: msg.name}
 		}
 		m.notifyAll()
 		return m, nil

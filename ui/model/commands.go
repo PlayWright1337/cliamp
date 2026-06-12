@@ -43,8 +43,8 @@ type ShowStatusMsg struct {
 }
 
 type tracksLoadedMsg struct {
-	tracks   []playlist.Track
-	autoPlay bool
+	name   string
+	tracks []playlist.Track
 }
 
 type relatedTracksLoadedMsg struct {
@@ -251,16 +251,16 @@ func saveYTDLCmd(pageURL string, saveDir string) tea.Cmd {
 	}
 }
 
-func fetchTracksCmd(prov playlist.Provider, playlistID string) tea.Cmd {
+func fetchTracksCmd(prov playlist.Provider, info playlist.PlaylistInfo) tea.Cmd {
 	return func() tea.Msg {
-		tracks, err := prov.Tracks(playlistID)
+		tracks, err := prov.Tracks(info.ID)
 		if err != nil {
 			return err
 		}
 		// Resolve PLS/M3U wrapper URLs to actual stream URLs so the
 		// player receives a direct audio stream instead of a playlist file.
 		tracks = resolveWrapperURLs(tracks)
-		return tracksLoadedMsg{tracks: tracks, autoPlay: true}
+		return tracksLoadedMsg{name: info.Name, tracks: tracks}
 	}
 }
 
