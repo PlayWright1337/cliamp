@@ -5,6 +5,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"cliamp/playlist"
+	"cliamp/ui"
 )
 
 type providerNowPlayingFake struct{}
@@ -160,5 +161,86 @@ func TestProviderPlaylistSelectionOpensTrackBrowser(t *testing.T) {
 	}
 	if loaded.name != "Tracks" || len(loaded.tracks) != 1 || loaded.tracks[0].Title != "Loaded" {
 		t.Fatalf("loaded = %+v, want Tracks with Loaded", loaded)
+	}
+}
+
+func TestProviderTrackPlayAddsNowPlayingToSoundCloudMenu(t *testing.T) {
+	prov := providerNowPlayingFake{}
+	player := &playbackFakeEngine{}
+	m := Model{
+		player:   player,
+		provider: prov,
+		playlist: playlist.New(),
+		vis:      ui.NewVisualizer(float64(player.SampleRate())),
+		providers: []ProviderEntry{
+			{Key: "soundcloud", Name: "SoundCloud", Provider: prov},
+		},
+		provPillIdx: 0,
+		providerLists: []playlist.PlaylistInfo{
+			{ID: "tracks", Name: "Tracks"},
+			{ID: "likes", Name: "Likes"},
+		},
+		navBrowser: navBrowserState{
+			prov:          prov,
+			visible:       true,
+			providerTrack: true,
+			mode:          navBrowseModeByAlbum,
+			screen:        navBrowseScreenTracks,
+			tracks: []playlist.Track{
+				{Title: "Loaded", Path: "https://example.com/loaded.mp3", Stream: true},
+			},
+		},
+	}
+
+	cmd := m.handleNavTrackListKey(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if cmd == nil {
+		t.Fatal("cmd = nil, want playback command")
+	}
+	if len(m.providerLists) != 3 || m.providerLists[0].ID != providerNowPlayingID {
+		t.Fatalf("providerLists = %+v, want Now Playing prepended", m.providerLists)
+	}
+	if current, idx := m.playlist.Current(); current.Title != "Loaded" || idx != 0 {
+		t.Fatalf("current = (%q,%d), want (\"Loaded\",0)", current.Title, idx)
+	}
+}
+
+func TestProviderTrackBrowserBackReturnsToProviderWithNowPlaying(t *testing.T) {
+	prov := providerNowPlayingFake{}
+	p := playlist.New()
+	p.Replace([]playlist.Track{{Title: "Current", Path: "current.mp3"}})
+
+	m := Model{
+		focus:    focusProvider,
+		provider: prov,
+		playlist: p,
+		providers: []ProviderEntry{
+			{Key: "soundcloud", Name: "SoundCloud", Provider: prov},
+		},
+		provPillIdx: 0,
+		providerLists: []playlist.PlaylistInfo{
+			{ID: "tracks", Name: "Tracks"},
+		},
+		navBrowser: navBrowserState{
+			prov:          prov,
+			visible:       true,
+			providerTrack: true,
+			mode:          navBrowseModeByAlbum,
+			screen:        navBrowseScreenTracks,
+			tracks:        []playlist.Track{{Title: "Loaded", Path: "loaded.mp3"}},
+		},
+	}
+
+	cmd := m.handleNavTrackListKey(tea.KeyPressMsg{Code: tea.KeyEscape})
+	if cmd != nil {
+		t.Fatalf("cmd = %v, want nil", cmd)
+	}
+	if m.navBrowser.visible {
+		t.Fatal("navBrowser.visible = true, want false")
+	}
+	if m.focus != focusProvider {
+		t.Fatalf("focus = %v, want focusProvider", m.focus)
+	}
+	if len(m.providerLists) != 2 || m.providerLists[0].ID != providerNowPlayingID {
+		t.Fatalf("providerLists = %+v, want Now Playing prepended", m.providerLists)
 	}
 }

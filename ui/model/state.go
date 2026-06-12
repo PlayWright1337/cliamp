@@ -152,24 +152,25 @@ type fileBrowserState struct {
 
 // navBrowserState holds state for the provider browser overlay.
 type navBrowserState struct {
-	prov         playlist.Provider
-	visible      bool
-	mode         navBrowseModeType
-	screen       navBrowseScreenType
-	cursor       int
-	scroll       int
-	artists      []provider.ArtistInfo
-	albums       []provider.AlbumInfo
-	tracks       []playlist.Track
-	selArtist    provider.ArtistInfo
-	selAlbum     provider.AlbumInfo
-	sortType     string
-	albumLoading bool
-	albumDone    bool
-	loading      bool
-	searching    bool
-	search       string
-	searchIdx    []int
+	prov          playlist.Provider
+	visible       bool
+	providerTrack bool
+	mode          navBrowseModeType
+	screen        navBrowseScreenType
+	cursor        int
+	scroll        int
+	artists       []provider.ArtistInfo
+	albums        []provider.AlbumInfo
+	tracks        []playlist.Track
+	selArtist     provider.ArtistInfo
+	selAlbum      provider.AlbumInfo
+	sortType      string
+	albumLoading  bool
+	albumDone     bool
+	loading       bool
+	searching     bool
+	search        string
+	searchIdx     []int
 }
 
 // spotSearchScreenType identifies which screen of the Spotify search overlay is active.

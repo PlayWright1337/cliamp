@@ -2,6 +2,7 @@ package model
 
 import (
 	"reflect"
+	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -25,6 +26,9 @@ func (m *Model) resetProviderNav() {
 }
 
 func (m *Model) decorateProviderLists(lists []playlist.PlaylistInfo) []playlist.PlaylistInfo {
+	lists = slices.DeleteFunc(slices.Clone(lists), func(info playlist.PlaylistInfo) bool {
+		return info.ID == providerNowPlayingID
+	})
 	if m.providerKey() != "soundcloud" || m.playlist == nil || m.playlist.Len() == 0 {
 		return lists
 	}
@@ -157,6 +161,7 @@ func (m *Model) findBrowseProvider() playlist.Provider {
 func (m *Model) openNavBrowserWith(prov playlist.Provider) {
 	m.navBrowser.prov = prov
 	m.navBrowser.visible = true
+	m.navBrowser.providerTrack = false
 	m.navBrowser.mode = navBrowseModeMenu
 	m.navBrowser.screen = navBrowseScreenList
 	m.navBrowser.cursor = 0
@@ -182,6 +187,7 @@ func (m *Model) openNavBrowserWith(prov playlist.Provider) {
 func (m *Model) openProviderTrackBrowser(info playlist.PlaylistInfo) {
 	m.navBrowser.prov = m.provider
 	m.navBrowser.visible = true
+	m.navBrowser.providerTrack = true
 	m.navBrowser.mode = navBrowseModeByAlbum
 	m.navBrowser.screen = navBrowseScreenTracks
 	m.navBrowser.cursor = 0
@@ -197,6 +203,13 @@ func (m *Model) openProviderTrackBrowser(info playlist.PlaylistInfo) {
 	m.navBrowser.searchIdx = nil
 	m.navBrowser.selArtist = provider.ArtistInfo{}
 	m.navBrowser.selAlbum = provider.AlbumInfo{Name: info.Name}
+}
+
+func (m *Model) refreshProviderNowPlaying() {
+	if m.providerLists == nil {
+		return
+	}
+	m.providerLists = m.decorateProviderLists(m.providerLists)
 }
 
 // navUpdateSearch rebuilds navSearchIdx from the current navSearch query

@@ -383,6 +383,7 @@ func (m *Model) handleNavTrackListKey(msg tea.KeyPressMsg) tea.Cmd {
 				m.status.Showf(statusTTLMedium, "Playing: %s", toAdd[0].DisplayName())
 			}
 			cmd := m.playCurrentTrack()
+			m.refreshProviderNowPlaying()
 			m.notifyPlayback()
 			return cmd
 		}
@@ -408,6 +409,7 @@ func (m *Model) handleNavTrackListKey(msg tea.KeyPressMsg) tea.Cmd {
 			m.focus = focusPlaylist
 			m.navBrowser.visible = false
 			cmd := m.playCurrentTrack()
+			m.refreshProviderNowPlaying()
 			m.notifyPlayback()
 			return cmd
 		}
@@ -429,9 +431,11 @@ func (m *Model) handleNavTrackListKey(msg tea.KeyPressMsg) tea.Cmd {
 			if wasEmpty || !m.player.IsPlaying() {
 				m.playlist.SetIndex(0)
 				cmd := m.playCurrentTrack()
+				m.refreshProviderNowPlaying()
 				m.notifyPlayback()
 				return cmd
 			}
+			m.refreshProviderNowPlaying()
 		}
 	case "q":
 		// Add the highlighted track and queue it to play next.
@@ -451,13 +455,22 @@ func (m *Model) handleNavTrackListKey(msg tea.KeyPressMsg) tea.Cmd {
 			m.status.Showf(statusTTLMedium, "Queued: %s", t.DisplayName())
 			if !m.player.IsPlaying() {
 				cmd := m.nextTrack()
+				m.refreshProviderNowPlaying()
 				m.notifyPlayback()
 				return cmd
 			}
+			m.refreshProviderNowPlaying()
 		}
 	case "esc", "h", "left", "backspace":
 		// Navigate back one level depending on the mode and how we got here.
 		m.navClearSearch()
+		if m.navBrowser.providerTrack {
+			m.navBrowser.visible = false
+			m.navBrowser.providerTrack = false
+			m.focus = focusProvider
+			m.refreshProviderNowPlaying()
+			return nil
+		}
 		m.navBrowser.cursor = 0
 		m.navBrowser.scroll = 0
 		switch m.navBrowser.mode {
