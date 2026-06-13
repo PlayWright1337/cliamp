@@ -62,7 +62,7 @@ eq_preset = "Flat"
 eq = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
 # Visualizer mode (leave empty for default Bars)
-# Options: Bars, BarsDot, Rain, BarsOutline, Bricks, Columns, ClassicPeak, Wave, Scatter, Flame, Retro, Pulse, Matrix, Binary, Sakura, Firework, Bubbles, Logo, Terrain, Scope, Heartbeat, Butterfly, Ascii, Firefly, Mosaic, Sand, Geyser, ClassicLED, None
+# Options: Bars, BarsDot, Rain, BarsOutline, Bricks, Columns, ClassicPeak, Wave, Scatter, Flame, Retro, Pulse, Matrix, Binary, Sakura, Firework, Bubbles, Logo, Terrain, Scope, Heartbeat, Butterfly, Ascii, Firefly, Mosaic, Sand, Geyser, ClassicLED, VU, Nebula, None
 visualizer = "Bars"
 
 # Visualizer volume linking (default: true)
@@ -84,6 +84,13 @@ theme = "Tokyo Night"
 # Log level: "debug", "info", "warn", or "error" (default "info")
 # Logs are written to ~/.config/cliamp/cliamp.log
 log_level = "info"
+
+[discord]
+enabled = false
+# Optional override. When omitted, cliamp uses its built-in Discord Application ID.
+client_id = "1445120766562668688"
+large_image = ""
+small_image = ""
 
 ```
 

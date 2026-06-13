@@ -52,7 +52,7 @@ eq = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 # UI theme name (check ~/.config/cliamp/themes/ for available themes)
 # theme = "Tokyo Night"
 
-# Visualizer mode: Bars, BarsDot, Rain, BarsOutline, Bricks, Columns, ClassicPeak, Wave, Scatter, Flame, Retro, Pulse, Matrix, Binary, Sakura, Firework, Bubbles, Logo, Terrain, Scope, Heartbeat, Butterfly, Ascii, Firefly, Mosaic, Sand, or None
+# Visualizer mode: Bars, BarsDot, Rain, BarsOutline, Bricks, Columns, ClassicPeak, Wave, Scatter, Flame, Retro, Pulse, Matrix, Binary, Sakura, Firework, Bubbles, Logo, Terrain, Scope, Heartbeat, Butterfly, Ascii, Firefly, Mosaic, Sand, Geyser, ClassicLED, VU, Nebula, or None
 # visualizer = "Bars"
 
 # Reduce CPU usage by lowering UI cadence and disabling visualization.
@@ -61,6 +61,18 @@ eq = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 # Log level: "debug", "info", "warn", or "error" (default "info")
 # Logs are written to ~/.config/cliamp/cliamp.log
 # log_level = "info"
+
+# ---
+# Discord Rich Presence (optional)
+# Uses cliamp's built-in Discord Application ID by default. Set client_id only
+# if you want to replace it with your own Discord Developer application.
+# Optional image keys must match assets uploaded to that app; they are app
+# assets, not SoundCloud/Spotify track covers.
+# [discord]
+# enabled = true
+# client_id = "1445120766562668688"
+# large_image = ""
+# small_image = ""
 
 # ---
 # Spotify (optional)

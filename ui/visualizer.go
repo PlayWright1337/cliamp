@@ -65,6 +65,8 @@ const (
 	VisSand                       // falling-sand cellular automaton
 	VisGeyser                     // bass-driven particle fountain
 	VisClassicLED                 // Winamp 2.9 LED matrix with falling peak caps
+	VisVU                         // horizontal stereo-style VU meters
+	VisNebula                     // drifting braille starfield
 	VisNone                       // hidden — no visualizer
 	VisCount                      // sentinel for cycling
 )
@@ -464,6 +466,8 @@ var visModes = [VisCount]visEntry{
 	VisSand:        {"Sand", newSandDriver},
 	VisGeyser:      {"Geyser", newGeyserDriver},
 	VisClassicLED:  {"ClassicLED", newClassicLEDDriver},
+	VisVU:          {"VU", newFastRenderOnlyDriver(spectrumAnalysisSpec(DefaultSpectrumBands), TickAnim, (*Visualizer).renderVU)},
+	VisNebula:      {"Nebula", newRenderOnlyDriver(spectrumAnalysisSpec(DefaultSpectrumBands), (*Visualizer).renderNebula)},
 	VisNone:        {"None", newNoOpDriver},
 }
 

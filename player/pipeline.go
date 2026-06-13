@@ -131,31 +131,34 @@ func (p *Player) buildPipelineAt(path string, byteOffset int64, timeOffset time.
 		if err != nil {
 			return nil, fmt.Errorf("navidrome buffer: %w", err)
 		}
-
-		// Derive total sample frames from the metadata duration hint so the
-		// seek bar and Len() work correctly. knownDuration is set by the caller
-		// (Play/Preload) onto the returned pipeline after buildPipeline returns,
-		// so we compute it here from timeOffset which is always 0 on first open.
-		// We use p.sr so the frame count matches the output sample rate.
-		totalFrames := 0
-		_ = timeOffset // unused for navBuffer path (byteOffset == 0 guard above)
-
-		decoder, format, err := decodeNavFFmpeg(nb, p.sr, p.bitDepth, totalFrames)
-		if err != nil {
+		if contentLen < 0 {
 			nb.Close()
-			return nil, fmt.Errorf("decode navidrome: %w", err)
+		} else {
+			// Derive total sample frames from the metadata duration hint so the
+			// seek bar and Len() work correctly. knownDuration is set by the caller
+			// (Play/Preload) onto the returned pipeline after buildPipeline returns,
+			// so we compute it here from timeOffset which is always 0 on first open.
+			// We use p.sr so the frame count matches the output sample rate.
+			totalFrames := 0
+			_ = timeOffset // unused for navBuffer path (byteOffset == 0 guard above)
+
+			decoder, format, err := decodeNavFFmpeg(nb, p.sr, p.bitDepth, totalFrames)
+			if err != nil {
+				nb.Close()
+				return nil, fmt.Errorf("decode navidrome: %w", err)
+			}
+			var s beep.Streamer = decoder
+			return &trackPipeline{
+				decoder:       decoder,
+				stream:        s,
+				format:        format,
+				seekable:      true, // navFFmpegStreamer.Seek() handles seeking without reconnect
+				rc:            nb,   // trackPipeline.close() calls nb.Close()
+				path:          path,
+				bytesRead:     &nb.bytesIn,
+				contentLength: contentLen,
+			}, nil
 		}
-		var s beep.Streamer = decoder
-		return &trackPipeline{
-			decoder:       decoder,
-			stream:        s,
-			format:        format,
-			seekable:      true, // navFFmpegStreamer.Seek() handles seeking without reconnect
-			rc:            nb,   // trackPipeline.close() calls nb.Close()
-			path:          path,
-			bytesRead:     &nb.bytesIn,
-			contentLength: contentLen,
-		}, nil
 	}
 
 	ext := formatExt(path)

@@ -51,6 +51,7 @@ require (
 	github.com/googleapis/enterprise-certificate-proxy v0.3.14 // indirect
 	github.com/googleapis/gax-go/v2 v2.19.0 // indirect
 	github.com/hajimehoshi/go-mp3 v0.3.4 // indirect
+	github.com/hugolgst/rich-go v0.0.0-20240715122152-74618cc1ace2 // indirect
 	github.com/icza/bitio v1.1.0 // indirect
 	github.com/jfreymuth/pulse v0.1.2-0.20241102120944-4ffb35054b53 // indirect
 	github.com/jfreymuth/vorbis v1.0.2 // indirect

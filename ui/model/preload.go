@@ -52,17 +52,17 @@ func (m *Model) preloadNext() tea.Cmd {
 		return preloadYTDLStreamCmd(m.player, next.Path, nextDur)
 	}
 	if next.Stream {
-		// For streams, only arm gapless if we're within the lead-time window.
-		// If we don't know the duration yet (0), preload immediately as before
-		// so that streams without duration metadata still get gapless behaviour.
+		if next.IsLive() || next.DurationSecs == 0 {
+			return nil
+		}
 		dur := m.player.Duration()
-		if dur > 0 {
-			pos := m.player.Position()
-			remaining := dur - pos
-			if remaining > streamPreloadLeadTime {
-				// Too early — caller should retry from the tick loop.
-				return nil
-			}
+		if dur <= 0 {
+			return nil
+		}
+		pos := m.player.Position()
+		remaining := dur - pos
+		if remaining > streamPreloadLeadTime {
+			return nil
 		}
 		nextDur := time.Duration(next.DurationSecs) * time.Second
 		// Mark in-flight so the tick loop doesn't dispatch a second concurrent

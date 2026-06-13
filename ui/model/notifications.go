@@ -86,6 +86,10 @@ func (m *Model) notifyPlayback() {
 	}
 	track, _ := m.playlist.Current()
 	artist, title := m.resolveTrackDisplay(track)
+	duration := m.player.Duration()
+	if duration <= 0 && track.DurationSecs > 0 {
+		duration = time.Duration(track.DurationSecs) * time.Second
+	}
 	m.notifier.Update(playback.State{
 		Status: status,
 		Track: playback.Track{
@@ -95,7 +99,7 @@ func (m *Model) notifyPlayback() {
 			Genre:       track.Genre,
 			TrackNumber: track.TrackNumber,
 			URL:         track.Path,
-			Duration:    m.player.Duration(),
+			Duration:    duration,
 		},
 		VolumeDB: m.player.Volume(),
 		Position: m.player.Position(),

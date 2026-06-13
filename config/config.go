@@ -171,6 +171,17 @@ type NetEaseConfig struct {
 // IsSet reports whether the NetEase provider should be shown.
 func (n NetEaseConfig) IsSet() bool { return n.Enabled }
 
+type DiscordConfig struct {
+	Enabled    bool
+	ClientID   string
+	LargeImage string
+	SmallImage string
+}
+
+func (d DiscordConfig) IsSet() bool {
+	return d.Enabled
+}
+
 // PlexConfig holds credentials for a Plex Media Server.
 // Both URL and Token must be non-empty for a client to be constructed.
 type PlexConfig struct {
@@ -250,6 +261,7 @@ type Config struct {
 	Emby             EmbyConfig                   // optional Emby server credentials
 	SoundCloud       SoundCloudConfig             // SoundCloud provider (opt-in via enabled = true)
 	NetEase          NetEaseConfig                // NetEase Cloud Music provider (opt-in via enabled = true)
+	Discord          DiscordConfig                // optional Discord Rich Presence
 	Plugins          map[string]map[string]string // per-plugin config from [plugins.*] sections
 	LogLevel         string                       // log level: debug, info, warn, error (default "info")
 	LowPower         bool                         // reduce CPU by lowering UI cadence and disabling visualization
@@ -403,6 +415,17 @@ func Load() (Config, error) {
 				cfg.NetEase.CookiesFrom = parseString(val)
 			case "user_id":
 				cfg.NetEase.UserID = parseString(val)
+			}
+		case "discord":
+			switch key {
+			case "enabled":
+				cfg.Discord.Enabled = strings.ToLower(val) == "true"
+			case "client_id":
+				cfg.Discord.ClientID = parseString(val)
+			case "large_image":
+				cfg.Discord.LargeImage = parseString(val)
+			case "small_image":
+				cfg.Discord.SmallImage = parseString(val)
 			}
 		case "jellyfin":
 			switch key {

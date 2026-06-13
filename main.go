@@ -25,6 +25,7 @@ import (
 	"cliamp/external/ytmusic"
 	"cliamp/internal/appdir"
 	"cliamp/internal/appmeta"
+	"cliamp/internal/discordrpc"
 	"cliamp/internal/playback"
 	"cliamp/internal/resume"
 	"cliamp/ipc"
@@ -391,6 +392,25 @@ func run(overrides config.Overrides, positional []string, daemon bool) error {
 	} else if svc != nil {
 		defer svc.Close()
 	}
+	discordSvc := discordrpc.New(discordrpc.Config{
+		Enabled:    cfg.Discord.Enabled,
+		ClientID:   cfg.Discord.ClientID,
+		LargeImage: cfg.Discord.LargeImage,
+		SmallImage: cfg.Discord.SmallImage,
+	})
+	if discordSvc != nil {
+		defer discordSvc.Close()
+	}
+	var notifiers []playback.Notifier
+	if svc != nil {
+		notifiers = append(notifiers, svc)
+	}
+	if discordSvc != nil {
+		notifiers = append(notifiers, discordSvc)
+	}
+	if notifier := playback.NewNotifierGroup(notifiers...); notifier != nil {
+		go prog.Send(model.AttachNotifier(notifier))
+	}
 
 	if luaMgr != nil {
 		luaMgr.SetControlProvider(luaplugin.ControlProvider{
@@ -484,7 +504,6 @@ func wireMediaCtl(prog *tea.Program) (*mediactl.Service, error) {
 	if err != nil || svc == nil {
 		return svc, err
 	}
-	go prog.Send(model.AttachNotifier(svc))
 	return svc, nil
 }
 
